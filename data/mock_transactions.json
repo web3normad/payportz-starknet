@@ -1,0 +1,38 @@
+[
+  {
+    "id": "tx-demo-001",
+    "type": "send",
+    "amount": 5000,
+    "currency": "USDC",
+    "recipient": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+    "recipientLabel": "Shenzhen Supplier",
+    "status": "completed",
+    "date": "2025-10-10 14:32",
+    "txHash": "0xdemoabc123",
+    "fee": "Gasless",
+    "reference": "INV-2025-001"
+  },
+  {
+    "id": "tx-demo-002",
+    "type": "onramp",
+    "amount": 8000,
+    "currency": "USDC",
+    "from": "₦12,800,000",
+    "status": "completed",
+    "date": "2025-10-11 10:15",
+    "fee": "₦192,000 (1.5%)",
+    "paymentMethod": "Bank Transfer"
+  },
+  {
+    "id": "tx-demo-003",
+    "type": "send",
+    "amount": 1200,
+    "currency": "USDC (Starknet)",
+    "recipient": "0xstarknetdemoaddress",
+    "recipientLabel": "Local Supplier",
+    "status": "pending",
+    "date": "2025-10-12 09:20",
+    "txHash": "",
+    "fee": "$0.12"
+  }
+]

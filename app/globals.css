@@ -1,0 +1,285 @@
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ClashDisplay Font Face Declarations */
+@font-face {
+  font-family: 'ClashDisplay-Bold';
+  src: url('/fonts/ClashDisplay-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Additional ClashDisplay font weights (optional) */
+@font-face {
+  font-family: 'ClashDisplay';
+  src: url('/fonts/ClashDisplay-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ClashDisplay';
+  src: url('/fonts/ClashDisplay-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ClashDisplay';
+  src: url('/fonts/ClashDisplay-Semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ClashDisplay';
+  src: url('/fonts/ClashDisplay-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* CSS Variables for fonts */
+:root {
+  --font-geist-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: ui-monospace, SFMono-Regular, monospace;
+  --font-clash-display: 'ClashDisplay', ui-sans-serif, system-ui, sans-serif;
+  
+  /* PaySlab Color Variables */
+  --payslab-primary: #8b61c2;
+  --payslab-primary-hover: #7952a8;
+  --nigeria-green: #008751;
+}
+
+/* Base layer for custom resets and defaults */
+@layer base {
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+
+  html,
+  body {
+    max-width: 100vw;
+    overflow-x: hidden;
+    font-family: var(--font-geist-sans);
+  }
+
+  body {
+    color: rgb(var(--foreground-rgb));
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        rgb(var(--background-end-rgb))
+      )
+      rgb(var(--background-start-rgb));
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* Components layer for reusable component classes */
+@layer components {
+  /* Custom utility classes for PaySlab */
+  .font-clash {
+    font-family: var(--font-clash-display);
+  }
+
+  .text-payslab-primary {
+    color: var(--payslab-primary);
+  }
+
+  .bg-payslab-primary {
+    background-color: var(--payslab-primary);
+  }
+
+  .bg-payslab-gradient {
+    background: linear-gradient(135deg, var(--payslab-primary) 0%, var(--payslab-primary-hover) 100%);
+  }
+
+  .border-payslab-primary {
+    border-color: var(--payslab-primary);
+  }
+
+  /* Button components using standard Tailwind classes */
+  .btn-payslab {
+    @apply bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+    font-family: var(--font-clash-display);
+  }
+
+  .btn-payslab-outline {
+    @apply border border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+    font-family: var(--font-clash-display);
+  }
+
+  /* Card styling */
+  .card-payslab {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm p-6 transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* Gradient text effect */
+  .text-gradient-payslab {
+    background: linear-gradient(135deg, var(--payslab-primary) 0%, var(--payslab-primary-hover) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Focus styles for accessibility */
+  .focus-payslab {
+    @apply focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50;
+  }
+
+  /* Loading spinner */
+  .loading-spinner {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--payslab-primary);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+  }
+}
+
+/* Utilities layer for single-purpose utility classes */
+@layer utilities {
+  /* Smooth transitions for sidebar */
+  .sidebar-transition {
+    transition: width 0.3s ease-in-out;
+  }
+
+  /* Custom scrollbar for main content */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  /* Nigerian flag colors for accents */
+  .accent-nigeria-green {
+    color: var(--nigeria-green);
+  }
+
+  .bg-nigeria-green {
+    background-color: var(--nigeria-green);
+  }
+
+  .accent-nigeria-white {
+    color: #ffffff;
+  }
+
+  .bg-nigeria-white {
+    background-color: #ffffff;
+  }
+}
+
+/* PaySlab specific animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .sidebar-mobile {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .sidebar-mobile.open {
+    transform: translateX(0);
+  }
+}
+
+/* Toast notifications */
+.toast-enter {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+.toast-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.toast-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.toast-exit-active {
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity 300ms, transform 300ms;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideInFromTop 0.3s ease-out;
+}
