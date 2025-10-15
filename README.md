@@ -1,4 +1,12 @@
 # PayPortz
+<div align="center">
+  <img src="https://img.shields.io/badge/Next.js-15.1.3-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js" />
+  <img src="https://img.shields.io/badge/React-18.3.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-3.4.1-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Starknet-1A1A40?style=for-the-badge&logo=ethereum&logoColor=white" alt="Starknet" />
+  <img src="https://img.shields.io/badge/USDC-2775CA?style=for-the-badge&logo=ethereum&logoColor=white" alt="USDC" />
+</div>
 
 PayPortz helps Nigerian businesses move money and complete international trade faster, cheaper, and with far less risk.
 
