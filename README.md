@@ -4,7 +4,8 @@
   <img src="https://img.shields.io/badge/React-18.3.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
   <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-3.4.1-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
-  <img src="https://raw.githubusercontent.com/starknet-edu/starknetbook/main/imgs/starknet-logo.png" alt="Starknet" height="28" />
+<img src="https://img.shields.io/badge/Starknet-1A1A40?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjZmZmIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCI+PHBhdGggZD0iTTI0IDBjMTMuMjUgMCAyNCAxMC43NSAyNCAyNHMtMTAuNzUgMjQtMjQgMjRTMCAzNy4yNSAwIDI0IDEwLjc1IDAgMjQgMHptMCA0QzEyLjM3IDQgNCAxMi4zNyA0IDI0czguMzcgMjAgMjAgMjAgMjAtOC4zNyAyMC0yMFMzNS42MyA0IDI0IDR6Ii8+PC9zdmc+" alt="Starknet" />
+
   <img src="https://img.shields.io/badge/USDC-2775CA?style=for-the-badge&logo=ethereum&logoColor=white" alt="USDC" />
 </div>
 
