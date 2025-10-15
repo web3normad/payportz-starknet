@@ -80,7 +80,17 @@ class BreadApiService {
         reference: reference || `wallet_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       }),
     });
-    return data.data;
+
+    const payload = (data && data.data) || {};
+    // API sometimes returns `wallet_id` on create, but other endpoints use `id`.
+    // Normalize so callers can always use `id`.
+    if (payload.wallet_id && !payload.id) {
+      payload.id = payload.wallet_id;
+    }
+    // Ensure address object exists
+    payload.address = payload.address || { evm: "", svm: "" };
+
+    return payload as BreadWallet;
   }
 
   async getWallet(walletId: string): Promise<BreadWallet> {

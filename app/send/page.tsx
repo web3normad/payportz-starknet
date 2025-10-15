@@ -31,6 +31,18 @@ const SendPayment = () => {
   const { isSignedIn } = useAuth();
   const { user } = useUser();
 
+  const [isAppSignedIn, setIsAppSignedIn] = useState(false);
+
+  useEffect(() => {
+    try {
+      const business = localStorage.getItem("payportz_business_name");
+      const breadWalletId = localStorage.getItem("payportz_bread_wallet_id");
+      setIsAppSignedIn(!!business && !!breadWalletId);
+    } catch (e) {
+      setIsAppSignedIn(false);
+    }
+  }, []);
+
   const [recipientType, setRecipientType] = useState("external"); // 'external' or 'platform'
   const [selectedCurrency, setSelectedCurrency] = useState<Asset>("base:usdc");
   const [amount, setAmount] = useState("");
@@ -529,7 +541,8 @@ const SendPayment = () => {
           </div>
 
           {/* Authentication Check */}
-          {!isSignedIn && (
+          {/* Consider either Clerk sign-in OR the app-local sign-in (business + bread wallet) */}
+          {!(isSignedIn || isAppSignedIn) && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
               <div className="flex items-center space-x-3">
                 <Warning size={24} className="text-yellow-600" />
@@ -586,11 +599,11 @@ const SendPayment = () => {
                     }`}
                   >
                     <Users size={24} className="mb-2 text-gray-700" />
-                    <p className="font-semibold text-gray-900">PaySlab User</p>
+                    <p className="font-semibold text-gray-900">Payportz User</p>
                     <p className="text-sm text-gray-600 mt-1">Instant & FREE</p>
-                    <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                    {/* <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
                       Coming Soon
-                    </span>
+                    </span> */}
                   </button>
                 </div>
               </div>

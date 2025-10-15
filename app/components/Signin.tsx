@@ -2,8 +2,21 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { Briefcase, User, Wallet } from "@phosphor-icons/react";
+import {
+  Briefcase,
+  User,
+  Wallet,
+  ArrowRight,
+  CheckCircle,
+  Shield,
+  Globe,
+  Lightning,
+} from "@phosphor-icons/react";
 import { breadApi } from "@/app/lib/breadApi";
+import blackbg from "@/public/black-bg.jpg";
+import starknet from "@/public/strk-logo.svg";
+import eth from "@/public/ethereum-logo.svg";
+import sol from "@/public/solana-logo.svg";
 
 const logo = "/Payslab-logo.svg";
 
@@ -15,6 +28,37 @@ const Signin = () => {
   const [showBusinessForm, setShowBusinessForm] = useState(false);
   const [toast, setToast] = useState<any>(null);
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
+  const [creationStatus, setCreationStatus] = useState("");
+  const [hasSavedAccounts, setHasSavedAccounts] = useState(false);
+  const [lastSavedAccountName, setLastSavedAccountName] = useState<
+    string | null
+  >(null);
+
+  // Helper to set localStorage and broadcast changes so other components update
+  const setAndBroadcast = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+      try {
+        window.dispatchEvent(
+          new StorageEvent("storage", { key, newValue: value })
+        );
+      } catch (e) {
+        window.dispatchEvent(
+          new CustomEvent("localstorage:update", { detail: { key, value } })
+        );
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  // current chain addresses for display
+  const [evmAddress, setEvmAddress] = useState<string | null>(null);
+  const [starknetAddress, setStarknetAddress] = useState<string | null>(null);
+  const [solanaAddress, setSolanaAddress] = useState<string | null>(null);
+  const [starknetPrivateKey, setStarknetPrivateKey] = useState<string | null>(
+    null
+  );
 
   // guest id used for bread reference when no auth system is present
   const guestId =
@@ -31,7 +75,85 @@ const Signin = () => {
     } else if (savedBreadWallet) {
       setShowBusinessForm(true);
     }
-    // run once
+
+    // discover saved accounts for quick-return
+    try {
+      const raw = localStorage.getItem("payportz_accounts") || "{}";
+      const accounts = JSON.parse(raw || "{}");
+      const names = Object.keys(accounts || {});
+      if (names.length) {
+        setHasSavedAccounts(true);
+        setLastSavedAccountName(names[names.length - 1]);
+      }
+    } catch (e) {
+      setHasSavedAccounts(false);
+      setLastSavedAccountName(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      setEvmAddress(localStorage.getItem("payportz_bread_wallet_evm"));
+      setStarknetAddress(localStorage.getItem("payportz_starknet_address"));
+      setStarknetPrivateKey(
+        localStorage.getItem("payportz_starknet_private_key")
+      );
+      setSolanaAddress(
+        localStorage.getItem("payportz_bread_wallet_svm") ||
+          localStorage.getItem("payportz_bread_wallet_solana") ||
+          null
+      );
+    } catch (_) {
+      // ignore
+    }
+  }, [showBusinessForm]);
+
+  // Listen for storage changes so the UI updates when keys are restored elsewhere
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      if (e.key === "payportz_bread_wallet_evm")
+        setEvmAddress(localStorage.getItem("payportz_bread_wallet_evm"));
+      if (e.key === "payportz_bread_wallet_svm")
+        setSolanaAddress(
+          localStorage.getItem("payportz_bread_wallet_svm") ||
+            localStorage.getItem("payportz_bread_wallet_solana") ||
+            null
+        );
+      if (e.key === "payportz_starknet_address")
+        setStarknetAddress(localStorage.getItem("payportz_starknet_address"));
+      if (e.key === "payportz_starknet_private_key")
+        setStarknetPrivateKey(
+          localStorage.getItem("payportz_starknet_private_key")
+        );
+    };
+
+    const onLocalUpdate = (ev: any) => {
+      const detail = ev?.detail;
+      if (!detail) return;
+      const { key } = detail;
+      if (key === "payportz_bread_wallet_evm")
+        setEvmAddress(localStorage.getItem("payportz_bread_wallet_evm"));
+      if (key === "payportz_bread_wallet_svm")
+        setSolanaAddress(
+          localStorage.getItem("payportz_bread_wallet_svm") ||
+            localStorage.getItem("payportz_bread_wallet_solana") ||
+            null
+        );
+      if (key === "payportz_starknet_address")
+        setStarknetAddress(localStorage.getItem("payportz_starknet_address"));
+      if (key === "payportz_starknet_private_key")
+        setStarknetPrivateKey(
+          localStorage.getItem("payportz_starknet_private_key")
+        );
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("localstorage:update", onLocalUpdate as any);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("localstorage:update", onLocalUpdate as any);
+    };
   }, []);
 
   const showToast = (message: string, type = "success") => {
@@ -74,6 +196,11 @@ const Signin = () => {
           "payportz_starknet_address",
           account.starknetAddress
         );
+      if (account.starknetPrivateKey)
+        localStorage.setItem(
+          "payportz_starknet_private_key",
+          account.starknetPrivateKey
+        );
       localStorage.setItem("payportz_business_name", reloginName);
 
       showToast("Signed in successfully");
@@ -84,112 +211,226 @@ const Signin = () => {
     }
   };
 
-  const createStarknetAccount = async () => {
-    if (typeof window === "undefined") return null;
-
+  const handleReturnToAccount = () => {
     try {
-      // dynamic import of starknetkit (optional)
-      // @ts-ignore
-      const skitModule: any = await import("starknetkit").catch(() => null);
-      if (!skitModule) {
-        console.warn("starknetkit not installed; skipping Starknet flow");
-        showToast(
-          "StarknetKit not installed; install to enable Argent flow",
-          "error"
+      const raw = localStorage.getItem("payportz_accounts") || "{}";
+      const accounts = JSON.parse(raw || "{}");
+      const last = lastSavedAccountName || Object.keys(accounts).pop();
+      if (!last) {
+        showToast("No saved account found", "error");
+        return;
+      }
+      const account = accounts[last];
+      if (!account) {
+        showToast("Saved account data is invalid", "error");
+        return;
+      }
+
+      // Helper to set localStorage and dispatch a storage event so other tabs/components update
+      const setAndBroadcast = (key: string, value: string) => {
+        localStorage.setItem(key, value);
+        try {
+          window.dispatchEvent(
+            new StorageEvent("storage", { key, newValue: value })
+          );
+        } catch (e) {
+          // some browsers restrict programmatic StorageEvent construction; fallback to custom event
+          window.dispatchEvent(
+            new CustomEvent("localstorage:update", { detail: { key, value } })
+          );
+        }
+      };
+
+      // Restore local storage keys for the saved account
+      if (account.breadWalletId) {
+        const isValidObjectId = /^[a-fA-F0-9]{24}$/.test(
+          account.breadWalletId || ""
         );
-        return null;
+        if (!isValidObjectId) {
+          showToast(
+            "Saved Bread wallet id is invalid — cannot restore it",
+            "error"
+          );
+        } else {
+          setAndBroadcast("payportz_bread_wallet_id", account.breadWalletId);
+        }
       }
-
-      const StarknetKit: any =
-        skitModule?.default || skitModule?.StarknetKit || skitModule;
-
-      let kit: any = null;
-      if (typeof StarknetKit === "function") kit = new StarknetKit();
-      else if (StarknetKit && typeof StarknetKit.connect === "function")
-        kit = StarknetKit;
-      else kit = StarknetKit;
-
-      const res = await kit?.connect?.();
-      if (!res) {
-        showToast("Failed to connect to Starknet wallet", "error");
-        return null;
-      }
-
-      const { wallet } = res;
-      if (!wallet || typeof wallet.request !== "function") {
-        showToast(
-          "Connected wallet does not support deployment data request",
-          "error"
+      if (account.breadEvm)
+        setAndBroadcast("payportz_bread_wallet_evm", account.breadEvm);
+      if (account.breadSvm)
+        setAndBroadcast("payportz_bread_wallet_svm", account.breadSvm);
+      if (account.starknetAddress)
+        setAndBroadcast("payportz_starknet_address", account.starknetAddress);
+      if (account.starknetPrivateKey)
+        setAndBroadcast(
+          "payportz_starknet_private_key",
+          account.starknetPrivateKey
         );
-        return null;
-      }
 
-      const deploymentData = await wallet.request({
-        type: "wallet_deploymentData",
-      });
-      if (!deploymentData) {
-        showToast("No deployment data returned from wallet", "error");
-        return null;
-      }
+      setAndBroadcast("payportz_business_name", last);
+      showToast("Welcome back — restoring your account", "success");
+      handleSuccessfulLogin();
+    } catch (err) {
+      console.error("Return to account failed", err);
+      showToast("Failed to restore account", "error");
+    }
+  };
 
-      const respRaw = await fetch("/api/starknet/deploy", {
+  const createStarknetAccount = async () => {
+    try {
+      setCreationStatus("Creating Starknet account...");
+
+      const resp = await fetch("/api/starknet/create-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deployPayload: deploymentData }),
+        // Request only key/address generation; do not fund or deploy the account
+        body: JSON.stringify({ deploy: false }),
       });
 
-      const resp = await respRaw.json().catch(() => ({}));
-      if (resp?.ok) {
-        showToast("Starknet account deploy submitted", "success");
-        const addr =
-          deploymentData.contractAddress || resp.contractAddress || "";
-        if (addr) localStorage.setItem("payportz_starknet_address", addr);
-      } else {
-        showToast(
-          "Starknet deploy failed: " + (resp?.error || "unknown"),
-          "error"
-        );
+      const data = await resp.json().catch(() => ({}));
+
+      if (!data.ok && data.error) {
+        console.warn("Starknet account creation issue:", data.error);
+        showToast(data.error, "error");
+        return null;
       }
 
-      return deploymentData;
+      const addr = data?.accountAddress || data?.account_address || null;
+      const privKey = data?.privateKey || data?.private_key || null;
+      const pubKey = data?.publicKey || data?.public_key || null;
+      const fundingTxHash =
+        data?.fundingTxHash || data?.funding_tx_hash || null;
+      const deployTxHash =
+        data?.deploymentTxHash || data?.deployment_tx_hash || null;
+
+      if (addr) {
+        setAndBroadcast("payportz_starknet_address", addr);
+        if (privKey) setAndBroadcast("payportz_starknet_private_key", privKey);
+        if (pubKey) setAndBroadcast("payportz_starknet_public_key", pubKey);
+        if (fundingTxHash)
+          setAndBroadcast("payportz_starknet_funding_tx", fundingTxHash);
+        if (deployTxHash)
+          setAndBroadcast("payportz_starknet_deploy_tx", deployTxHash);
+
+        setStarknetAddress(addr);
+        setStarknetPrivateKey(privKey);
+
+        showToast("Starknet account created successfully", "success");
+        return { contractAddress: addr, privateKey: privKey };
+      }
+
+      const msg =
+        data?.error || data?.message || "Failed to create Starknet account";
+      console.warn("Starknet create-account returned no address", data);
+      showToast(msg, "error");
+      return null;
     } catch (err: any) {
-      console.error("createStarknetAccount error:", err);
-      showToast(err?.message || "Starknet account creation failed", "error");
+      console.error("Starknet account creation failed", err);
+      showToast(err?.message || "Failed to create Starknet account", "error");
       return null;
     }
   };
 
   const createBreadWallet = async () => {
     try {
+      // Clear any previous wallet keys to avoid stale/invalid ids being used
+      const keysToClear = [
+        "payportz_bread_wallet_id",
+        "payportz_bread_wallet_reference",
+        "payportz_bread_wallet_evm",
+        "payportz_bread_wallet_svm",
+        "payportz_bread_wallet_solana",
+        "payportz_starknet_address",
+        "payportz_starknet_private_key",
+        "payportz_starknet_public_key",
+        "payportz_starknet_funding_tx",
+        "payportz_starknet_deploy_tx",
+      ];
+      try {
+        keysToClear.forEach((k) => localStorage.removeItem(k));
+        // Notify other components that localStorage changed
+        try {
+          window.dispatchEvent(
+            new CustomEvent("localstorage:update", {
+              detail: { cleared: keysToClear },
+            })
+          );
+        } catch (e) {
+          // ignore
+        }
+      } catch (e) {
+        // ignore
+      }
+
       setIsCreatingWallet(true);
+      setCreationStatus("Creating multi-chain wallets...");
+
       const reference = `user_${guestId}_${Date.now()}`;
       const breadWallet = await breadApi.createWallet(reference);
 
-      // store bread wallet info
-      localStorage.setItem("payportz_bread_wallet_id", breadWallet.id);
-      localStorage.setItem(
-        "payportz_bread_wallet_reference",
-        breadWallet.reference || reference
-      );
-      if (breadWallet.address?.evm)
-        localStorage.setItem(
-          "payportz_bread_wallet_evm",
-          breadWallet.address.evm
+      // store bread wallet info (only if id present) and broadcast
+      if (breadWallet?.id) {
+        setAndBroadcast("payportz_bread_wallet_id", breadWallet.id);
+      }
+      if (breadWallet?.reference || reference) {
+        setAndBroadcast(
+          "payportz_bread_wallet_reference",
+          breadWallet.reference || reference
         );
-      if (breadWallet.address?.svm)
-        localStorage.setItem(
-          "payportz_bread_wallet_svm",
-          breadWallet.address.svm
-        );
+      }
 
-      showToast("Bread wallet created");
+      if (breadWallet.address?.evm) {
+        setAndBroadcast("payportz_bread_wallet_evm", breadWallet.address.evm);
+        setEvmAddress(breadWallet.address.evm);
+      }
+
+      if (breadWallet.address?.svm) {
+        setAndBroadcast("payportz_bread_wallet_svm", breadWallet.address.svm);
+        setSolanaAddress(breadWallet.address.svm);
+      }
+
+      // Broadcast the new keys so other components (Sidebar etc.) update immediately
+      try {
+        const updatedKeys: string[] = [];
+        if (breadWallet?.id) updatedKeys.push("payportz_bread_wallet_id");
+        if (breadWallet?.reference || reference)
+          updatedKeys.push("payportz_bread_wallet_reference");
+        if (breadWallet.address?.evm)
+          updatedKeys.push("payportz_bread_wallet_evm");
+        if (breadWallet.address?.svm)
+          updatedKeys.push("payportz_bread_wallet_svm");
+
+        // Attempt to dispatch a StorageEvent (may be restricted) then fallback to a custom event
+        try {
+          window.dispatchEvent(
+            new StorageEvent("storage", { key: updatedKeys[0] || null })
+          );
+        } catch (e) {
+          // fallback
+        }
+
+        try {
+          window.dispatchEvent(
+            new CustomEvent("localstorage:update", {
+              detail: { keys: updatedKeys },
+            })
+          );
+        } catch (e) {
+          // ignore
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      showToast("Bread wallet created successfully");
+
+      // Create Starknet account (non-blocking but awaited for better UX)
+      setCreationStatus("Creating Starknet account...");
+      await createStarknetAccount().catch((e) =>
+        console.warn("starknet account creation error", e)
+      );
+
       setShowBusinessForm(true);
-
-      // non-blocking attempt to create a Starknet account for the same user
-      createStarknetAccount().catch((e) =>
-        console.warn("starknet non-blocking error", e)
-      );
-
       return breadWallet;
     } catch (err: any) {
       console.error("Bread wallet creation failed:", err);
@@ -197,6 +438,7 @@ const Signin = () => {
       throw err;
     } finally {
       setIsCreatingWallet(false);
+      setCreationStatus("");
     }
   };
 
@@ -232,7 +474,11 @@ const Signin = () => {
       accounts[username].starknetAddress = localStorage.getItem(
         "payportz_starknet_address"
       );
+      accounts[username].starknetPrivateKey = localStorage.getItem(
+        "payportz_starknet_private_key"
+      );
       localStorage.setItem("payportz_accounts", JSON.stringify(accounts));
+
       showToast(`Account created. Recovery token: ${token}`, "success");
     } catch (err) {
       console.warn("failed to save account mapping", err);
@@ -253,14 +499,28 @@ const Signin = () => {
 
   if (isCreatingWallet) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5]">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center max-w-md mx-auto px-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-t-4 border-black mx-auto"></div>
-          <p className="text-gray-900 mt-6 text-lg font-medium">
-            Creating your multi-chain wallet with Bread...
+          <div className="relative">
+            <div className="animate-spin rounded-full h-20 w-20 border-4 border-gray-200 border-t-[#253529] mx-auto mb-6"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Wallet size={24} className="text-[#253529]" />
+            </div>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Creating Your Wallets
+          </h3>
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 font-medium">
+              {creationStatus}
+            </p>
+          </div>
+          <p className="text-gray-600">
+            Setting up your multi-chain wallets across EVM, Solana, and
+            Starknet...
           </p>
-          <p className="text-gray-600 text-sm mt-2">
-            This may take a few moments
+          <p className="text-gray-500 text-sm mt-2">
+            This will just take a moment
           </p>
         </div>
       </div>
@@ -269,27 +529,15 @@ const Signin = () => {
 
   if (isRedirecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5]">
-        <div className="text-center">
-          <div className="bg-green-100 rounded-full p-4 mx-auto w-20 h-20 flex items-center justify-center mb-6">
-            <svg
-              className="w-10 h-10 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-full p-4 mx-auto w-24 h-24 flex items-center justify-center mb-6 shadow-lg">
+            <CheckCircle size={40} className="text-white" weight="fill" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Setup Complete!
-          </h1>
-          <p className="text-gray-600">Taking you to your dashboard...</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">All Set!</h1>
+          <p className="text-gray-600 text-lg">
+            Taking you to your dashboard...
+          </p>
         </div>
       </div>
     );
@@ -300,38 +548,105 @@ const Signin = () => {
     const breadWalletSvm = localStorage.getItem("payportz_bread_wallet_svm");
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5] p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl p-8 shadow-sm">
-            <div className="text-center mb-8">
-              <Image
-                src={logo}
-                alt="Logo"
-                width={64}
-                height={64}
-                className="mx-auto mb-4"
-              />
-              <h1 className="font-bold text-xl text-gray-900">PayPortz</h1>
-              <h2 className="text-2xl font-semibold mt-6 mb-2 text-gray-900">
+          <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#253529] to-[#1a2a1d] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Image
+                  src={logo}
+                  alt="PayPortz Logo"
+                  width={36}
+                  height={36}
+                  className="filter brightness-0 invert"
+                />
+              </div>
+              <h1 className="font-bold text-xl text-gray-900 mb-2 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                PayPortz
+              </h1>
+              <h2 className="text-lg font-semibold mt-4 mb-2 text-gray-900">
                 Complete Your Profile
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-sm">
                 Please provide your business information to continue
               </p>
 
-              <div className="mt-4 space-y-2">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-gray-600">🔷 EVM Wallet</p>
-                  <p className="text-xs font-mono text-gray-900 truncate">
-                    {breadWalletEvm?.slice(0, 10)}...{breadWalletEvm?.slice(-8)}
-                  </p>
+              <div className="mt-4 flex flex-col gap-3">
+                {/* Starknet card */}
+                <div className="w-full p-3 bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-3">
+                  <Image src={starknet} alt="Starknet" width={25} height={25} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">
+                      Starknet
+                    </p>
+                    <p className="text-xs font-mono text-gray-900 truncate">
+                      {starknetAddress
+                        ? `${starknetAddress.slice(
+                            0,
+                            8
+                          )}...${starknetAddress.slice(-6)}`
+                        : "Not connected"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      navigator.clipboard.writeText(starknetAddress || "")
+                    }
+                    disabled={!starknetAddress}
+                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Copy
+                  </button>
                 </div>
 
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <p className="text-xs text-gray-600">🟢 Solana Wallet</p>
-                  <p className="text-xs font-mono text-gray-900 truncate">
-                    {breadWalletSvm?.slice(0, 10)}...{breadWalletSvm?.slice(-8)}
-                  </p>
+                {/* EVM card */}
+                <div className="w-full p-3 bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-3">
+                  <Image src={eth} alt="EVM" width={24} height={24} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">EVM</p>
+                    <p className="text-xs font-mono text-gray-900 truncate">
+                      {breadWalletEvm
+                        ? `${breadWalletEvm.slice(
+                            0,
+                            8
+                          )}...${breadWalletEvm.slice(-6)}`
+                        : "Not connected"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      navigator.clipboard.writeText(breadWalletEvm || "")
+                    }
+                    disabled={!breadWalletEvm}
+                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Copy
+                  </button>
+                </div>
+
+                {/* Solana card */}
+                <div className="w-full p-3 bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-3">
+                  <Image src={sol} alt="Solana" width={24} height={24} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">Solana</p>
+                    <p className="text-xs font-mono text-gray-900 truncate">
+                      {breadWalletSvm
+                        ? `${breadWalletSvm.slice(
+                            0,
+                            8
+                          )}...${breadWalletSvm.slice(-6)}`
+                        : "Not connected"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      navigator.clipboard.writeText(breadWalletSvm || "")
+                    }
+                    disabled={!breadWalletSvm}
+                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Copy
+                  </button>
                 </div>
               </div>
             </div>
@@ -339,14 +654,14 @@ const Signin = () => {
             <div className="space-y-4">
               <div>
                 <label
-                  className="font-medium block mb-2 text-gray-700"
+                  className="font-medium block mb-2 text-gray-700 text-sm"
                   htmlFor="businessName"
                 >
                   Business/Company Name
                 </label>
                 <div className="relative">
                   <Briefcase
-                    size={20}
+                    size={18}
                     className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400"
                   />
                   <input
@@ -355,7 +670,7 @@ const Signin = () => {
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    className="bg-gray-100 p-3 pl-10 pr-4 rounded-lg w-full outline-none focus:ring-2 focus:ring-black border-0"
+                    className="bg-gray-50 border border-gray-200 p-3 pl-10 pr-4 rounded-lg w-full outline-none focus:ring-2 focus:ring-[#253529] focus:border-[#253529] transition-all shadow-sm text-sm"
                     placeholder="Your Company Ltd."
                     autoFocus
                   />
@@ -365,9 +680,10 @@ const Signin = () => {
               <button
                 onClick={handleBusinessNameSubmit}
                 disabled={!businessName.trim()}
-                className="bg-black hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium w-full p-3 rounded-xl transition-colors"
+                className="bg-gradient-to-r from-[#253529] to-[#1a2a1d] hover:from-[#1a2a1d] hover:to-[#253529] disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-medium w-full p-3 rounded-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100 shadow-lg flex items-center justify-center gap-2 text-sm"
               >
-                Complete Setup
+                <span>Complete Setup</span>
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
@@ -377,173 +693,176 @@ const Signin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl">
-        <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-          <div className="w-full lg:w-1/2 max-w-md">
-            <div className="bg-white rounded-2xl p-8 lg:p-10 shadow-sm">
-              <div className="mb-6">
-                <Image src={logo} alt="PayPortz Logo" width={64} height={64} />
-                <h1 className="font-bold text-base mt-2 text-gray-900">
-                  PayPortz
-                </h1>
-              </div>
-
-              <div className="mb-8">
-                <h1 className="text-4xl font-medium text-gray-900 mb-3">
-                  Welcome to PayPortz!
-                </h1>
-                <p className="text-gray-600 text-sm">
-                  Sign in to create your multi-chain wallets and start accepting
-                  cross-border payments.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                        <User size={16} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Guest
-                        </p>
-                        <p className="text-xs text-gray-600">Not signed</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={startWalletCreation}
-                    className="bg-black hover:bg-gray-800 text-white font-medium w-full p-4 rounded-xl transition-colors flex items-center justify-center gap-3"
-                  >
-                    <Wallet size={20} />
-                    <span>Create Multi-Chain Wallets</span>
-                  </button>
-
-                  {/* Returning user sign-in */}
-                  <div className="mt-4 bg-white p-3 rounded-lg border border-gray-100">
-                    <p className="text-sm font-medium text-gray-900 mb-2">
-                      Returning user? Sign in
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={reloginName}
-                        onChange={(e) => setReloginName(e.target.value)}
-                        placeholder="Username"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                      />
-                      <input
-                        type="text"
-                        value={reloginToken}
-                        onChange={(e) => setReloginToken(e.target.value)}
-                        placeholder="Recovery token"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={handleRelogin}
-                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-                      >
-                        Sign In
-                      </button>
-                      <button
-                        onClick={() => {
-                          // quick helper to autofill last account if one exists
-                          try {
-                            const raw =
-                              localStorage.getItem("payportz_accounts") || "{}";
-                            const accounts = JSON.parse(raw);
-                            const last = Object.keys(accounts).pop();
-                            if (last) {
-                              setReloginName(last);
-                              setReloginToken(accounts[last].token || "");
-                              showToast("Autofilled last account", "info");
-                            } else {
-                              showToast("No saved accounts found", "error");
-                            }
-                          } catch (err) {
-                            showToast("Failed to autofill", "error");
-                          }
-                        }}
-                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                      >
-                        Autofill
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      If you lost your token check localStorage key{" "}
-                      <code>payportz_accounts</code> for the value.
-                    </p>
-                  </div>
-
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <p className="text-xs text-green-700 text-center">
-                      ✅ Ready to create EVM & Solana wallets
-                    </p>
-                  </div>
+    <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Left Side - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 lg:p-8">
+        <div className="w-full max-w-lg">
+          <div className="p-4 lg:p-6">
+            {/* Header */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#253529] to-[#1a2a1d] rounded-xl flex items-center justify-center shadow-lg">
+                  <Image
+                    src={logo}
+                    alt="PayPortz Logo"
+                    width={28}
+                    height={28}
+                    className="filter brightness-0 invert"
+                  />
                 </div>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                    Why PayPortz?
-                  </h3>
-                  <ul className="text-xs text-gray-600 space-y-1">
-                    <li className="flex items-center gap-2">
-                      <span>⚡</span>
-                      <span>Multi-chain wallet creation (EVM + Solana)</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span>🔒</span>
-                      <span>Secure authentication (optional)</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span>🌍</span>
-                      <span>Instant cross-border payments</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span>💰</span>
-                      <span>No setup costs & gasless transactions</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="hidden lg:block w-full lg:w-1/2">
-            <div className="bg-[#E8F5E3] rounded-3xl p-12 min-h-[600px] flex flex-col items-center justify-center">
-              <div className="w-full max-w-md aspect-square bg-white/50 rounded-2xl flex items-center justify-center mb-8 relative overflow-hidden">
-                <div className="text-center p-8">
-                  <div className="mb-4">
-                    <Image
-                      src={logo}
-                      alt="Illustration"
-                      width={120}
-                      height={120}
-                      className="mx-auto opacity-30"
-                    />
-                  </div>
-                  <p className="text-gray-500 text-sm font-medium">
-                    Multi-Chain Powered
+                <div>
+                  <h1 className="font-bold text-2xl bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    PayPortz
+                  </h1>
+                  <p className="text-gray-600 text-xs mt-1">
+                    Multi-chain payment infrastructure
                   </p>
                 </div>
               </div>
 
-              <div className="text-center">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                  Cross-border payments across all chains
-                </h2>
-                <p className="text-lg text-gray-700">Powered by Bread</p>
-                <div className="mt-4 text-sm text-gray-600 space-y-1">
-                  <p>• EVM wallets (Ethereum, Base, Polygon, BSC, etc.)</p>
-                  <p>• Solana wallet</p>
-                  <p>• Gasless transactions & instant global payments</p>
-                  <p>• Enterprise-grade security</p>
+              <div className="mb-6">
+                <h1 className="text-3xl font-bold text-gray-900 mb-3 leading-tight">
+                  Welcome to{" "}
+                  <span className="bg-gradient-to-r from-[#253529] to-[#1a2a1d] bg-clip-text text-transparent">
+                    PayPortz
+                  </span>
+                </h1>
+                <p className="text-gray-600 text-base leading-relaxed">
+                  Create multi-chain wallets and start accepting cross-border
+                  payments in minutes. Powered by Bread and Starknet.
+                </p>
+              </div>
+            </div>
+
+            {hasSavedAccounts && (
+              <div className="mb-4">
+                <button
+                  onClick={handleReturnToAccount}
+                  className="w-full py-2 px-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium shadow-md"
+                >
+                  Return to your account
+                  {lastSavedAccountName ? ` — ${lastSavedAccountName}` : ""}
+                </button>
+              </div>
+            )}
+
+            {/* Main Action Card */}
+            <div className="bg-white rounded-xl p-5 shadow-lg border border-gray-100 mb-4">
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md">
+                    <User size={16} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      Guest Session
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Ready to create wallets
+                    </p>
+                  </div>
+                </div>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              </div>
+
+              <button
+                onClick={startWalletCreation}
+                className="bg-gradient-to-r from-[#253529] to-[#1a2a1d] hover:from-[#1a2a1d] hover:to-[#253529] text-white font-medium w-full p-3 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-3 group text-sm"
+              >
+                <Wallet
+                  size={18}
+                  className="group-hover:scale-110 transition-transform"
+                />
+                <span>Create Multi-Chain Wallets</span>
+                <ArrowRight
+                  size={16}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
+              </button>
+            </div>
+
+            {/* Returning User Section */}
+            <div className="bg-white rounded-xl p-5 shadow-lg border border-gray-100 mb-4">
+              <p className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <Shield size={16} className="text-[#253529]" />
+                Returning user? Sign in
+              </p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <input
+                  type="text"
+                  value={reloginName}
+                  onChange={(e) => setReloginName(e.target.value)}
+                  placeholder="Username"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-[#253529] focus:border-[#253529] transition-all"
+                />
+                <input
+                  type="text"
+                  value={reloginToken}
+                  onChange={(e) => setReloginToken(e.target.value)}
+                  placeholder="Recovery token"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-[#253529] focus:border-[#253529] transition-all"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRelogin}
+                  className="flex-1 px-3 py-2 bg-gradient-to-r from-[#253529] to-[#1a2a1d] text-white rounded-lg text-sm font-medium hover:from-[#1a2a1d] hover:to-[#253529] transition-all shadow-md"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      const raw =
+                        localStorage.getItem("payportz_accounts") || "{}";
+                      const accounts = JSON.parse(raw);
+                      const last = Object.keys(accounts).pop();
+                      if (last) {
+                        setReloginName(last);
+                        setReloginToken(accounts[last].token || "");
+                        showToast("Autofilled last account", "info");
+                      } else {
+                        showToast("No saved accounts found", "error");
+                      }
+                    } catch (err) {
+                      showToast("Failed to autofill", "error");
+                    }
+                  }}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white hover:bg-gray-50 transition-all font-medium"
+                >
+                  Autofill
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Lost your token? Check{" "}
+                <code className="bg-gray-100 px-1 py-0.5 rounded">
+                  payportz_accounts
+                </code>
+              </p>
+            </div>
+
+            {/* Features Grid */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 shadow-sm">
+              <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <Lightning size={16} className="text-blue-600" />
+                Why Choose PayPortz?
+              </h3>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-2 p-2 bg-white/60 rounded-lg border border-white/50">
+                  <Globe size={14} className="text-blue-600" />
+                  <span className="text-gray-700 font-medium">Multi-chain</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-white/60 rounded-lg border border-white/50">
+                  <Shield size={14} className="text-green-600" />
+                  <span className="text-gray-700 font-medium">Secure</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-white/60 rounded-lg border border-white/50">
+                  <Lightning size={14} className="text-yellow-600" />
+                  <span className="text-gray-700 font-medium">Instant</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-white/60 rounded-lg border border-white/50">
+                  <Wallet size={14} className="text-purple-600" />
+                  <span className="text-gray-700 font-medium">Gasless</span>
                 </div>
               </div>
             </div>
@@ -551,21 +870,84 @@ const Signin = () => {
         </div>
       </div>
 
+      {/* Right Side - Black Background with StarkNet */}
+      <div className="hidden lg:block w-1/2 relative overflow-hidden">
+        <Image
+          src={blackbg}
+          alt="Background"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/80 to-black/60"></div>
+        <div className="relative z-10 h-full flex flex-col justify-center items-center text-white p-8">
+          <div className="w-full max-w-sm aspect-square bg-white/10 rounded-2xl flex flex-col items-center justify-center mb-8 backdrop-blur-sm border border-white/20 shadow-xl p-8">
+            <div className="text-center">
+              <div className="w-24 h-24 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6 p-4 backdrop-blur-sm border border-white/30">
+                <Image
+                  src={starknet}
+                  alt="StarkNet Logo"
+                  width={80}
+                  height={80}
+                />
+              </div>
+              <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                StarkNet Powered
+              </h3>
+              <p className="text-white/80 text-sm leading-relaxed">
+                Built on StarkNet for scalable, secure transactions
+              </p>
+            </div>
+          </div>
+
+          <div className="text-center max-w-md">
+            <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              Enterprise Payment Infrastructure
+            </h2>
+            <p className="text-white/80 text-base leading-relaxed mb-6">
+              The only payment solution you'll ever need
+            </p>
+
+            {/* Supported Chain Badge */}
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20">
+              <div className="w-6 h-6 rounded flex items-center justify-center">
+                <Image src={starknet} alt="StarkNet" width={14} height={14} />
+              </div>
+              <div className="text-left">
+                <p className="text-white font-medium text-xs">
+                  Supported Chain
+                </p>
+                <p className="text-white/70 text-xs">StarkNet Mainnet</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Decorative Elements */}
+          <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+          <div className="absolute bottom-1/4 left-1/4 w-48 h-48 bg-white/3 rounded-full blur-2xl"></div>
+        </div>
+      </div>
+
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-6 right-6 z-50 animate-fade-in">
-          <div
-            className={`flex items-center space-x-3 p-4 rounded-xl shadow-lg border ${
-              toast.type === "success"
-                ? "bg-green-50 border-green-200"
-                : toast.type === "error"
-                ? "bg-red-50 border-red-200"
-                : "bg-blue-50 border-blue-200"
-            }`}
-          >
-            <div className="text-sm font-medium text-gray-900">
-              {toast.message}
-            </div>
+        <div
+          className={`fixed top-4 right-4 p-3 rounded-lg shadow-lg border transition-all duration-300 text-sm z-50 ${
+            toast.type === "error"
+              ? "bg-red-50 border-red-200 text-red-800"
+              : toast.type === "info"
+              ? "bg-blue-50 border-blue-200 text-blue-800"
+              : "bg-green-50 border-green-200 text-green-800"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {toast.type === "error" ? (
+              <span className="text-red-600">⚠️</span>
+            ) : toast.type === "info" ? (
+              <span className="text-blue-600">ℹ️</span>
+            ) : (
+              <span className="text-green-600">✅</span>
+            )}
+            <span className="font-medium">{toast.message}</span>
           </div>
         </div>
       )}
