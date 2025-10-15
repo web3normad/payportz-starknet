@@ -1,167 +1,84 @@
-# PayPortz (payportz-starknet)
+# PayPortz
 
-Multi-chain payment dashboard built with Next.js + TypeScript. The app uses Bread for on-chain wallet provisioning and balances and Starknet for STRK balances and programmatic account creation. This branch focuses on a Bread-first onboarding flow and programmatic (server-side) Starknet account creation (no injected wallet popups).
+PayPortz helps Nigerian businesses move money and complete international trade faster, cheaper, and with far less risk.
 
-## Table of contents
+This repository is an early-stage prototype for PayPortz — a product that gives traders instant access to USD liquidity, protects payments with programmable escrow, and builds verifiable trade history so businesses can grow and qualify for finance.
 
-- Features
-- Prerequisites
-- Environment variables
-- Local setup
-- Run the app
-- Build / Production
-- Project structure & important modules
-- LocalStorage keys the app uses
-- Server endpoints (developer facing)
-- Troubleshooting
-- Security notes
-- Contributing
-- License
+Why PayPortz exists
 
-## Features
+Many Nigerian traders cannot access USD through regular banks. That forces them to use informal, risky channels that charge huge premiums and offer no protection when goods don’t arrive. PayPortz brings a safer, faster alternative that:
 
-- Bread-first onboarding: create multi-chain wallets (EVM, Solana) via Bread and programmatic Starknet account creation on the server.
-- Sidebar shows aggregated balance (Bread balances + STRK from Starknet) and reacts to localStorage events.
-- Programmatic Starknet account creation endpoint to avoid injected wallet popups.
-- Minimal auth: guest account / local account mapping + optional Clerk hooks.
+- Converts NGN to USD-stablecoins quickly and at transparent rates (minutes, not months).
+- Holds payments in escrow and releases them only when verified trade milestones are met.
+- Creates an auditable transaction history that helps businesses access credit and trade more confidently.
 
-## Prerequisites
+Who this is for
 
-- Node.js 18+ (or project's target Node version)
-- npm (or pnpm/yarn)
-- Optional: Bread public API key for real balances: `NEXT_PUBLIC_BREAD_API_KEY`
-- Optional: Server Starknet relayer credentials for funding/deploy flows:
-  - `STARKNET_RELAYER_ADDRESS`
-  - `STARKNET_RELAYER_PRIVATE_KEY`
-  - `STARKNET_RPC_URL`
+- Nigerian importers and exporters who need reliable USD liquidity for international trade.
+- Small and medium enterprises that want clear transaction history and merchant tools to grow.
+- International buyers who need verifiable quality checks and transparent payments.
 
-If the Starknet relayer vars are not set the server endpoints still support non-deploy mode (generate a key/address and return it) but will return graceful ok:false responses for funding/deploy attempts.
+What PayPortz does (plain language)
 
-## Environment variables (.env.local example)
+- Fast conversion: Convert NGN to USDC at fair rates so suppliers can be paid promptly.
+- Protected payments: Money is held in a smart escrow and released in stages (order, shipment, delivery) only after evidence of each milestone.
+- Quality guarantees: Inspections and certificates ensure exporters get fair prices for verified quality.
+- Trade records & analytics: Businesses get a clear ledger and reports that make it easier to apply for trade finance.
 
-Create a `.env.local` file in the repository root and add:
+Key benefits
 
-```env
-NEXT_PUBLIC_BREAD_API_KEY=your_bread_api_key_here
-NEXT_PUBLIC_DASHBOARD_URL=http://localhost:3000/dashboard
+- Dramatically lower cost vs informal dollar markets.
+- Much faster access to USD liquidity for time-sensitive purchases.
+- Less fraud and easier dispute resolution through evidence-backed payment releases.
+- Better ability to qualify for loans with a business-grade transaction history.
 
-# Optional - Starknet relayer for funding/deploy (production only)
-STARKNET_RELAYER_ADDRESS=0x...
-STARKNET_RELAYER_PRIVATE_KEY=0x...
-STARKNET_RPC_URL=https://your-starknet-rpc.example
+High-level features
 
-# Optional/legacy (not required for current branch):
-# NEXT_PUBLIC_PRIVY_APP_ID=...
-# NEXT_PUBLIC_ALCHEMY_API_KEY=...
-```
+- NGN → USDC conversion with competitive fees
+- Smart escrow with milestone-based release (order, shipment, delivery)
+- Inspection-backed payments for agricultural and commodity exports
+- Shipping integrations for automatic delivery verification
+- Supplier reputation and dispute tools
 
-> Do not commit real secrets into the repository. Use your platform's secret store in production.
+A note about this repository
 
-## Local setup
+This project demonstrates product flows and integrations for PayPortz. It is intended as a prototype and developer demo. It contains convenience features for local development (for example, some keys may be stored locally in non-production flows). Do not treat this as a production custody or compliance-ready system without additional security, audits, and legal/regulatory work.
 
-Install dependencies:
+Tech stack (high level)
+
+- Web: Next.js (App Router), React, TypeScript
+- Styling: Tailwind CSS
+- Wallet & onboarding: Bread (wallet provisioning and balance lookups)
+- Blockchain: Starknet (STRK flows) and support for stablecoin rails (e.g., USDC on supported chains)
+- Server: Next.js API routes (Node.js)
+- Integrations: Circle (USDC), DHL/FedEx tracking APIs, inspection partners (SGS/Bureau Veritas)
+- Storage & evidence: IPFS (for inspection reports / dispute evidence)
+- Smart contracts: Upgradeable escrow and Letter-of-Credit contracts
+
+Try it locally (developer demo)
+
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-## Run the app (development)
+2. Start the development server:
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser. The Signin page is the onboarding flow where you can create a Bread wallet and request a programmatic Starknet account from the server.
+3. Open `http://localhost:3000` and use the Signin page to create a demo wallet and try the onboarding flow.
 
-## Build / Production
+If you need the developer-focused setup (env vars, relayer keys, deployment notes), say the word and I’ll add a `DEVELOPER.md` with step-by-step instructions.
 
-```bash
-npm run build
-npm run start
-```
+Want help with next steps?
 
-Adjust environment variables for your hosting environment.
+I can:
 
-## Project structure & important modules
+- Add a short product one-pager or investor pitch based on this repo.
+- Create `DEVELOPER.md` with environment variables and relayer setup.
+- Remove demo-only dependencies and prepare a production checklist.
 
-- `app/` — Next.js app router and components.
-  - `app/components/Signin.tsx` — Onboarding & Bread-first sign-in flow. Creates Bread wallet and calls the server to create a Starknet account (non-deploy default). Uses `setAndBroadcast()` to notify other components of localStorage changes.
-  - `app/components/core/Sidebar.tsx` — Left navigation and balance card. Fetches Bread balances via `breadApi.getBalances(...)` and STRK via `/api/starknet/balance`. Validates stored Bread wallet id before calling Bread.
-  - `app/dashboard/page.tsx` — Dashboard UI (STRK + Bread balances). EVM/Solana/Privy UI removed in this branch to focus on Starknet.
-  - `app/lib/breadApi.ts` — Bread API wrapper (createWallet, getBalances, getWallet, etc.). Normalizes create response (maps `wallet_id` → `id`).
-  - `app/api/starknet/create-account/route.ts` — Programmatic Starknet account creation endpoint. Supports `{ deploy: false }`.
-  - `app/api/starknet/balance/route.ts` — Returns STRK balance for a given Starknet address.
-  - `app/providers/providers.tsx` — App providers (QueryClientProvider). PrivyProvider removed in this branch.
-
-## LocalStorage keys the app uses
-
-- `payportz_accounts` — JSON map of saved accounts.
-- `payportz_business_name` — saved display name.
-- `payportz_bread_wallet_id` — Bread wallet id (24‑hex ObjectId expected).
-- `payportz_bread_wallet_evm` — Bread-provided EVM address.
-- `payportz_bread_wallet_svm` / `payportz_bread_wallet_solana` — Bread-provided Solana address.
-- `payportz_starknet_address` — locally stored Starknet address.
-- `payportz_starknet_private_key` — (development only) returned by server in non‑deploy mode.
-
-> In production, do NOT store private keys in localStorage.
-
-## Server endpoints (developer facing)
-
-- `POST /api/starknet/create-account` — Request account generation. Body example: `{ "deploy": false }`. Returns `{ ok: true, accountAddress, privateKey }` in non‑deploy mode. If server SDK or relayer keys missing it returns `{ ok: false, error: "..." }`.
-- `POST /api/starknet/balance` — Body: `{ "address": "0x..." }` returns `{ ok: true, balance: "<wei>" }`.
-
-### Quick curl examples
-
-```bash
-curl -s -X POST http://localhost:3000/api/starknet/create-account \
-  -H 'Content-Type: application/json' \
-  -d '{"deploy":false}'
-
-curl -s -X POST http://localhost:3000/api/starknet/balance \
-  -H 'Content-Type: application/json' \
-  -d '{"address":"0x..."}'
-```
-
-## Troubleshooting
-
-- "Invalid ObjectId format" in Sidebar
-  - The app expects `payportz_bread_wallet_id` to be a 24‑hex Mongo ObjectId. If you see this error:
-
-```js
-// In browser console
-localStorage.removeItem('payportz_bread_wallet_id')
-window.dispatchEvent(new CustomEvent('localstorage:update', { detail: { key: 'payportz_bread_wallet_id' } }))
-```
-
-  - Alternatively, re-create a Bread wallet from the Signin page (Signin clears stale keys before creating a new wallet).
-
-- Starknet create-account returns `ok: false` or no address
-  - Ensure server `STARKNET_RELAYER_*` env vars and `STARKNET_RPC_URL` are set if you expect funding/deploy behaviour. Without them the server supports non‑deploy address/key generation only.
-
-- Bread balances don't update after Signin
-  - Signin calls `setAndBroadcast()` which dispatches `storage` or `localstorage:update`. Sidebar listens for both. If UI remains stale reload the page or check the console for errors.
-
-## Security notes
-
-- Private keys stored in localStorage are only for development/demo purposes. Use secure custody or encrypted storage for production.
-- Never commit `.env.local` with real secrets.
-
-## Contributing
-
-- Follow the TypeScript + React style used in the `app/` directory.
-- Use the conventional commit format where possible.
-- Add tests and run linters before opening PRs.
-
-## License
-
-Add a `LICENSE` file if you intend to open-source this project.
-
----
-
-If you'd like, I can also:
-
-- add `CONTRIBUTING.md` with a PR checklist,
-- remove Privy from `package.json` and `package-lock.json` and run `npm uninstall` to shrink dependencies,
-- add a short `DEMO.md` showing example flows.
-
-Tell me which follow-up you want.
+Tell me which you'd like and I’ll implement it.
